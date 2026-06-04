@@ -5,7 +5,8 @@ def main():
     acomodador = Acomodador(10, 8, [0.5, 0.5, 0.5, 0.5])
     #acomodador.mostrar_plantilla()
     imagen = Imagen("imagen_de_prueba.png")
-    acomodador.acomodar_rectangular(imagen, "alto", 3)
+    #acomodador.acomodar_rectangular(imagen, "alto", 3)
+    acomodador.acomodar_circular(imagen, "ancho", 4)
     acomodador.mostrar_plantilla()
 
 
