@@ -6,6 +6,7 @@ import numpy as np
 ACOMODAR_ANCHO = "ancho"
 ACOMODAR_ALTO = "alto"
 Acomodo = Literal["ancho", "alto"]
+PULGADA = 25.4
 
 
 def imagen_en_blanco(alto: int, ancho: int):
@@ -81,7 +82,7 @@ class Acomodador:
         cv2.rectangle(
             plantilla,
             (self.area[0][1], self.area[0][0]),
-            (self.area[3][1], self.area[3][0]),
+            (self.area[2][1], self.area[2][0]),
             (0, 0, 0),
             5,
         )
@@ -120,10 +121,10 @@ class Acomodador:
         ancho_total = self.area[1][1] - self.area[0][1]
         alto_total = self.area[2][0] - self.area[0][0]
         if acomodo == ACOMODAR_ANCHO:
-            ancho_imagen = ancho_total / (cantidad + 0.5 * cantidad)
+            ancho_imagen = ancho_total / (cantidad + 0.5)
             proporcion = ancho_imagen / imagen.forma[1]
         else:
-            alto_imagen = alto_total / (cantidad + 0.5 * cantidad)
+            alto_imagen = alto_total / (cantidad + 0.5)
             proporcion = alto_imagen / imagen.forma[0]
         nueva =  imagen.escalar_imagen(proporcion)
         return cuadrar_imagen(nueva), alto_total, ancho_total
