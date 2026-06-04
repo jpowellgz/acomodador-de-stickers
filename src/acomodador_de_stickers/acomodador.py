@@ -1,3 +1,4 @@
+import os
 import math
 from typing import Literal
 import cv2
@@ -22,15 +23,16 @@ def mostrar_imagen(imagen: np.ndarray):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+
 def cuadrar_imagen(imagen: np.ndarray):
     forma = imagen.shape
     mayor = max(forma)
     cuadrado = imagen_en_blanco(mayor, mayor)
     centro_cuadrado = int(mayor / 2)
-    x0 = centro_cuadrado - int(forma[1]/2)
-    y0 = centro_cuadrado - int(forma[0]/2)
-    x1 = centro_cuadrado + forma[1] - int(forma[1]/2)
-    y1 = centro_cuadrado + forma[0] - int(forma[0]/2)
+    x0 = centro_cuadrado - int(forma[1] / 2)
+    y0 = centro_cuadrado - int(forma[0] / 2)
+    x1 = centro_cuadrado + forma[1] - int(forma[1] / 2)
+    y1 = centro_cuadrado + forma[0] - int(forma[0] / 2)
     cuadrado[y0:y1, x0:x1] = imagen.copy()
     return cuadrado
 
@@ -39,12 +41,15 @@ class Imagen:
     def __init__(
         self, direccion: str, rellenar: float = 0.0, auto_recortar: bool = False
     ):
-        self.imagen = cv2.imread(direccion)
-        if rellenar > 0.0:
-            self.rellenar_imagen()
-        elif auto_recortar:
-            self.autorecortar_imagen()
-        self.forma = self.imagen.shape
+        if os.path.exists(direccion) and (
+            direccion.endswith(".png") or direccion.endswith(".jpg")
+        ):
+            self.imagen = cv2.imread(direccion)
+            if rellenar > 0.0:
+                self.rellenar_imagen()
+            elif auto_recortar:
+                self.autorecortar_imagen()
+            self.forma = self.imagen.shape
 
     def escalar_imagen(self, escala: float) -> np.ndarray:
         return cv2.resize(self.imagen, None, fx=escala, fy=escala)
@@ -57,15 +62,19 @@ class Imagen:
 
 
 class Acomodador:
-    def __init__(self, alto: int, ancho: int, margenes: list[float], dpi=300):
+    def __init__(self, alto: int, ancho: int, margenes: list[float] | None = None, dpi=300):
         self.alto = alto
         self.ancho = ancho
-        self.margenes = margenes
-        self.dpi = dpi
-        self.iniciar_plantilla()
+        self.margenes = margenes if margenes is not None else [0,0,0,0]
+        self.dpi = int(dpi / PULGADA)
+        if self.alto > 0 and self.ancho > 0:
+            self.iniciar_plantilla()
 
     def iniciar_plantilla(self):
-        self.plantilla: np.ndarray = imagen_en_blanco(self.alto * self.dpi, self.ancho * self.dpi)
+        print(f"Creando plantilla con {self.ancho}x{self.alto}mm, ")
+        self.plantilla: np.ndarray = imagen_en_blanco(
+            self.alto * self.dpi, self.ancho * self.dpi
+        )
         y0 = int(self.margenes[0] * self.dpi)
         x0 = int(self.margenes[3] * self.dpi)
         x1 = int(self.ancho * self.dpi - self.margenes[1] * self.dpi)
@@ -76,6 +85,7 @@ class Acomodador:
             [y1, x1],
             [y1, x0],
         ]
+        print(f"{self.plantilla.shape[0]}x{self.plantilla.shape[1]}px")
 
     def mostrar_plantilla(self):
         plantilla = self.plantilla.copy()
@@ -126,7 +136,7 @@ class Acomodador:
         else:
             alto_imagen = alto_total / (cantidad + 0.5)
             proporcion = alto_imagen / imagen.forma[0]
-        nueva =  imagen.escalar_imagen(proporcion)
+        nueva = imagen.escalar_imagen(proporcion)
         return cuadrar_imagen(nueva), alto_total, ancho_total
 
     def acomodar_circular(self, imagen: Imagen, acomodo: Acomodo, cantidad: int):
@@ -149,7 +159,7 @@ class Acomodador:
                         y0 = self.area[0][0] + j * distancia
                     x1 = x0 + nueva_forma[1]
                     y1 = y0 + nueva_forma[0]
-                    coordenadas.append([y0,y1,x0,x1])
+                    coordenadas.append([y0, y1, x0, x1])
         else:
             coordenadas = []
             for i in range(math.floor(ancho_total / distancia)):
@@ -162,9 +172,12 @@ class Acomodador:
                         y0 = self.area[0][0] + radio + j * nueva_forma[0]
                     x1 = x0 + nueva_forma[1]
                     y1 = y0 + nueva_forma[0]
-                    coordenadas.append([y0,y1,x0,x1])
+                    coordenadas.append([y0, y1, x0, x1])
         for coord in coordenadas:
-            self.plantilla[coord[0]:coord[1], coord[2]:coord[3]] = np.bitwise_and(nueva_imagen.copy(), self.plantilla[coord[0]:coord[1], coord[2]:coord[3]])
+            self.plantilla[coord[0] : coord[1], coord[2] : coord[3]] = np.bitwise_and(
+                nueva_imagen.copy(),
+                self.plantilla[coord[0] : coord[1], coord[2] : coord[3]],
+            )
         for coord in coordenadas:
             cv2.circle(
                 self.plantilla,

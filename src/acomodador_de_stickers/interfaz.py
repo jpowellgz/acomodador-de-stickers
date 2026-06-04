@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import dearpygui.dearpygui as dpg
 from src.acomodador_de_stickers.utils import hojas
+from src.acomodador_de_stickers.acomodador import Imagen, Acomodador, mostrar_imagen
 
 opciones_hojas = [f"{key}: {val[0]}mm x {val[1]}mm" for key, val in hojas.items()]
 
@@ -11,16 +12,24 @@ class Opciones:
     tam_hoja: str
     margenes: list
     imagen: str
+    dpi: int
+    forma: str
 
     def __init__(self):
         self.imagen = ""
         self.acomodo = "ancho"
         self.tam_hoja = "A4"
         self.margenes = [0, 0, 0, 0]
+        self.dpi = 300
+        self.forma = "rectangular"
+
+class Display:
+    acomodador: Acomodador
+    imagen: Imagen
 
 
 opciones = Opciones()
-
+display = Display()
 
 def callback_hoja(sender, data):
     opciones.tam_hoja = dpg.get_value(sender)[:2]
@@ -45,9 +54,12 @@ def callback_margen_aba(sender, data):
 def callback_margen_izq(sender, data):
     opciones.margenes[3] = dpg.get_value(sender)
 
+def callback_dpi(sender, data):
+    opciones.dpi = dpg.get_value(sender)
 
 def callback_dir(sender, app_data):
     opciones.imagen=app_data["file_path_name"]
+    display.imagen = Imagen(opciones.imagen)
     print("actualizado", opciones)
     print("OK was clicked.")
     print("Sender: ", sender)
@@ -59,6 +71,12 @@ def cancel_callback(sender, app_data):
     print("Sender: ", sender)
     print("App Data: ", app_data)
 
+def callback_crear_hoja(sender, app_data):
+    ancho, alto = hojas[opciones.tam_hoja]
+    display.acomodador = Acomodador(alto=alto, ancho=ancho,margenes=opciones.margenes, dpi=opciones.dpi)
+
+def callback_forma(sender, app_data):
+    opciones.forma = dpg.get_value(sender)
 
 def crear_interfaz():
     print(opciones)
@@ -80,7 +98,7 @@ def crear_interfaz():
             label="Elegir imagen", 
             callback=lambda: dpg.show_item("archivo"),
             width=100,
-            height=50,
+            height=30,
         )
         dpg.add_text("Opciones")
         dpg.add_combo(
@@ -99,6 +117,14 @@ def crear_interfaz():
             label="Acomodar",
             width=150,
         )
+        dpg.add_combo(
+            tag="Forma",
+            items=["rectangular", "circular"],
+            callback=callback_forma,
+            default_value="rectangular",
+            label="Forma de sticker",
+            width=150,
+        )
         dpg.add_text("Márgenes (mm)")
         dpg.add_input_int(
             label="Arriba", default_value=0, width=100, callback=callback_margen_arr
@@ -111,6 +137,15 @@ def crear_interfaz():
         )
         dpg.add_input_int(
             label="Arriba", default_value=0, width=100, callback=callback_margen_izq
+        )
+        dpg.add_input_int(
+            label="DPI", default_value=300, width=100, callback=callback_dpi
+        )
+        dpg.add_button(
+            label="Crear hoja", 
+            callback=callback_crear_hoja,
+            width=100,
+            height=30,
         )
 
     dpg.create_viewport(title="Custom Title", width=800, height=600)
