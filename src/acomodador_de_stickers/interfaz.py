@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import os
 import cv2
 import dearpygui.dearpygui as dpg
 import numpy as np
@@ -11,6 +12,7 @@ from src.acomodador_de_stickers.acomodador import (
 )
 
 opciones_hojas = [f"{key}: {val[0]}mm x {val[1]}mm" for key, val in hojas.items()]
+VERSION="v0.1.0"
 
 ANCHO_VENTANA = 880
 ALTO_VENTANA = 660
@@ -53,7 +55,7 @@ def callback_hoja(sender, data):
 
 
 def callback_cantidad(sender, data):
-    opciones.cantidad = dpg.get_vaule(sender)
+    opciones.cantidad = dpg.get_value(sender)
 
 
 def callback_acomodo(sender, data):
@@ -91,9 +93,11 @@ def callback_crear_hoja(sender, app_data):
     display.acomodador = Acomodador(
         alto=alto, ancho=ancho, margenes=opciones.margenes, dpi=opciones.dpi
     )
-    print("acomodador actualizado", opciones.__dict__)
-    if display.imagen.imagen is not None and opciones.cantidad > 0:
-        print("TODO OK")
+    margenes = opciones.margenes
+    imagen_ok = getattr(display, "imagen", None) is not None
+    cantidad_ok = opciones.cantidad > 0
+    margenes_ok = (margenes[0] + margenes[2]) < alto and (margenes[1] + margenes[3]) < ancho
+    if imagen_ok and cantidad_ok and margenes_ok:
         if opciones.forma == "rectangular":
             display.acomodador.acomodar_rectangular(
                 display.imagen, opciones.acomodo, opciones.cantidad
@@ -108,8 +112,38 @@ def callback_crear_hoja(sender, app_data):
             escalar_imagen(plantilla, ALTO_PLANTILLA, ANCHO_PLANTILLA) / 255
         )
         dpg.set_value("textura_plantilla", nueva.flatten().tolist())
+        dpg.configure_item("descargar_hoja", show=True)
+        dpg.configure_item("estado", default_value="Hoja creada")
     else:
-        print("NADA OK")
+        if not imagen_ok:
+            dpg.configure_item(
+                "estado",
+                default_value="Error: Carga imagen",
+            )
+        if not cantidad_ok:
+            dpg.configure_item(
+                "estado",
+                default_value="Error: Revisar la cantidad",
+            )
+        if not margenes_ok:
+            dpg.configure_item(
+                "estado",
+                default_value="Error: Márgenes incorrectos",
+            )
+
+
+
+def callback_descargar_hoja(sender, app_data):
+    NOMBRE = "plantilla.png"
+    imagen = cv2.cvtColor(display.acomodador.plantilla, cv2.COLOR_BGR2RGB)
+    forma = display.acomodador.plantilla.shape
+    dpg.save_image(
+        file=NOMBRE, width=forma[1], height=forma[0], data=imagen, components=3
+    )
+    dpg.configure_item(
+        "estado",
+        default_value=f"Plantilla guardada en {os.path.join(os.getcwd(), NOMBRE)}",
+    )
 
 
 def callback_forma(sender, app_data):
@@ -127,16 +161,36 @@ def crear_textura(alto: int, ancho: int):
 def agregar_margenes():
     dpg.add_text("Márgenes (mm)")
     dpg.add_input_int(
-        label="Arriba", default_value=0, width=100, callback=callback_margen_arr
+        label="Arriba",
+        default_value=0,
+        width=100,
+        callback=callback_margen_arr,
+        min_value=0,
+        min_clamped=True,
     )
     dpg.add_input_int(
-        label="Derecha", default_value=0, width=100, callback=callback_margen_der
+        label="Derecha",
+        default_value=0,
+        width=100,
+        callback=callback_margen_der,
+        min_value=0,
+        min_clamped=True,
     )
     dpg.add_input_int(
-        label="Izquierda", default_value=0, width=100, callback=callback_margen_aba
+        label="Izquierda",
+        default_value=0,
+        width=100,
+        callback=callback_margen_aba,
+        min_value=0,
+        min_clamped=True,
     )
     dpg.add_input_int(
-        label="Arriba", default_value=0, width=100, callback=callback_margen_izq
+        label="Arriba",
+        default_value=0,
+        width=100,
+        callback=callback_margen_izq,
+        min_value=0,
+        min_clamped=True,
     )
 
 
@@ -153,7 +207,11 @@ def agregar_opciones():
         label="Cantidad de stickers(ancho o alto)",
         default_value=6,
         width=100,
-        callback=callback_margen_arr,
+        min_value=1,
+        max_value=200,
+        min_clamped=True,
+        max_clamped=True,
+        callback=callback_cantidad,
     )
     dpg.add_combo(
         tag="Acomodo",
@@ -183,6 +241,9 @@ def callback_dir(sender, app_data):
     nueva = np.ones((TAM_IMG, TAM_IMG, 4), dtype=np.float32)
     nueva[:, :, :3] = escalada / 255
     dpg.set_value("textura_imagen", nueva.flatten().tolist())
+    dpg.configure_item(
+        "estado", default_value=f"Imagen {app_data['file_path_name']} cargada"
+    )
 
 
 def agregar_dialogo_directorio():
@@ -221,9 +282,7 @@ with dpg.texture_registry():
 
 
 def crear_interfaz():
-
     agregar_dialogo_directorio()
-
     with dpg.window(tag="Ventana Primaria", label="Acomodador de stickers"):
         dpg.add_button(
             label="Elegir imagen",
@@ -245,14 +304,29 @@ def crear_interfaz():
             width=100,
             height=30,
         )
+        dpg.add_button(
+            label="Descargar hoja",
+            callback=callback_descargar_hoja,
+            width=200,
+            height=30,
+            show=False,
+            tag="descargar_hoja",
+        )
         dpg.add_image(
             "textura_plantilla",
             label="plantilla",
             pos=[ANCHO_VENTANA - ANCHO_PLANTILLA, 0],
         )
+        dpg.add_text(
+            "Programa iniciado",
+            label="Estado",
+            tag="estado",
+            wrap=400,
+            color=(0, 50, 255, 255),
+        )
 
     dpg.create_viewport(
-        title="Acomodador de stickers", width=ANCHO_VENTANA, height=ALTO_VENTANA
+        title=f"Acomodador de stickers {VERSION}", width=ANCHO_VENTANA, height=ALTO_VENTANA
     )
     dpg.setup_dearpygui()
     dpg.show_viewport()
