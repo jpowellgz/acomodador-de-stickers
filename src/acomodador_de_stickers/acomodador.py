@@ -36,6 +36,9 @@ def cuadrar_imagen(imagen: np.ndarray):
     cuadrado[y0:y1, x0:x1] = imagen.copy()
     return cuadrado
 
+def escalar_imagen(imagen: np.ndarray, alto: int, ancho:int):
+    return cv2.resize(imagen, (ancho, alto))
+
 
 class Imagen:
     def __init__(
@@ -50,6 +53,8 @@ class Imagen:
             elif auto_recortar:
                 self.autorecortar_imagen()
             self.forma = self.imagen.shape
+        else:
+            self.imagen = None
 
     def escalar_imagen(self, escala: float) -> np.ndarray:
         return cv2.resize(self.imagen, None, fx=escala, fy=escala)
