@@ -30,6 +30,7 @@ class Opciones:
     dpi: int
     forma: str
     cantidad: int
+    nombre: str
 
     def __init__(self):
         self.imagen = ""
@@ -39,6 +40,7 @@ class Opciones:
         self.dpi = 300
         self.forma = "rectangular"
         self.cantidad = 6
+        self.nombre="plantilla.png"
 
 
 class Display:
@@ -48,7 +50,6 @@ class Display:
 
 opciones = Opciones()
 display = Display()
-
 
 def callback_hoja(sender, data):
     opciones.tam_hoja = dpg.get_value(sender)[:2]
@@ -112,6 +113,7 @@ def callback_crear_hoja(sender, app_data):
             escalar_imagen(plantilla, ALTO_PLANTILLA, ANCHO_PLANTILLA) / 255
         )
         dpg.set_value("textura_plantilla", nueva.flatten().tolist())
+        dpg.configure_item("nombre_hoja", show=True)
         dpg.configure_item("descargar_hoja", show=True)
         dpg.configure_item("estado", default_value="Hoja creada")
     else:
@@ -131,19 +133,27 @@ def callback_crear_hoja(sender, app_data):
                 default_value="Error: Márgenes incorrectos",
             )
 
+def callback_nombre_hoja(sender, app_data):
+    opciones.nombre = dpg.get_value(sender)
+    dpg.configure_item("nombre_hoja", default_value=opciones.nombre)
 
 
 def callback_descargar_hoja(sender, app_data):
-    NOMBRE = "plantilla.png"
     imagen = cv2.cvtColor(display.acomodador.plantilla, cv2.COLOR_BGR2RGB)
     forma = display.acomodador.plantilla.shape
-    dpg.save_image(
-        file=NOMBRE, width=forma[1], height=forma[0], data=imagen, components=3
-    )
-    dpg.configure_item(
-        "estado",
-        default_value=f"Plantilla guardada en {os.path.join(os.getcwd(), NOMBRE)}",
-    )
+    if opciones.nombre.endswith(".png") or opciones.nombre.endswith(".jpg"):
+        dpg.save_image(
+            file=opciones.nombre, width=forma[1], height=forma[0], data=imagen, components=3
+        )
+        dpg.configure_item(
+            "estado",
+            default_value=f"Plantilla guardada en {os.path.join(os.getcwd(), opciones.nombre)}",
+        )
+    else:
+        dpg.configure_item(
+            "estado",
+            default_value="Plantilla no guardada, usa png o jpg",
+        )
 
 
 def callback_forma(sender, app_data):
@@ -262,6 +272,11 @@ def agregar_dialogo_directorio():
 
 dpg.create_context()
 
+with dpg.font_registry():
+    fuente = dpg.add_font("fuente/OpenSans-Regular.ttf", 18)
+   
+dpg.bind_font(fuente)
+
 textura_plantilla = crear_textura(ALTO_PLANTILLA, ANCHO_PLANTILLA)
 with dpg.texture_registry():
     dpg.add_dynamic_texture(
@@ -304,8 +319,17 @@ def crear_interfaz():
             width=100,
             height=30,
         )
+        dpg.add_input_text(
+            default_value=opciones.nombre,
+            label="Nombre",
+            tag="nombre_hoja",
+            callback=callback_nombre_hoja,
+            width=200,
+            height=30,
+            show=False,
+        )
         dpg.add_button(
-            label="Descargar hoja",
+            label="Guardar hoja",
             callback=callback_descargar_hoja,
             width=200,
             height=30,
@@ -322,11 +346,11 @@ def crear_interfaz():
             label="Estado",
             tag="estado",
             wrap=400,
-            color=(0, 50, 255, 255),
+            color=(150, 150, 255, 255),
         )
 
     dpg.create_viewport(
-        title=f"Acomodador de stickers {VERSION}", width=ANCHO_VENTANA, height=ALTO_VENTANA
+        title=f"Acomodador de stickers {VERSION}", width=ANCHO_VENTANA, height=ALTO_VENTANA, x_pos=10, y_pos=10
     )
     dpg.setup_dearpygui()
     dpg.show_viewport()
